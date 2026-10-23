@@ -338,7 +338,7 @@ function App() {
               ☰ Chats ({conversations.length})
             </button>
             <div className="title-group">
-              <h1>Simple RAG Chat</h1>
+              <h1>RAG Chat</h1>
               <p>Ask questions grounded in your documents</p>
             </div>
           </div>

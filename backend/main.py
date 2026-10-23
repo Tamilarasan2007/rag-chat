@@ -182,21 +182,19 @@ def ask_question(request: QuestionRequest):
     5. Build context and conversation-aware prompt.
     6. Generate and return the answer.
     """
-    # 1. Basic validation
+
     question = request.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
     if len(question) > 2000:
         raise HTTPException(status_code=400, detail="Question is too long (maximum 2000 characters).")
 
-    # 2. Make sure RAG is ready
     if not rag_ready:
         raise HTTPException(
             status_code=503,
             detail=f"RAG system is not ready: {rag_error}",
         )
 
-    # 3. Sanitize conversation history (limit count and length)
     clean_history: list[ChatMessage] = []
     for msg in request.history[-6:]:
         if msg.role in ("user", "assistant") and msg.content.strip():
@@ -208,10 +206,7 @@ def ask_question(request: QuestionRequest):
             )
 
     try:
-        # 4. Rewrite follow-up question if needed
         search_query = rewrite_question_if_needed(question, clean_history)
-
-        # 5. Retrieve the most relevant chunks from FAISS using standalone query
         results = vector_store.query(search_query, top_k=5)
 
         texts = [
@@ -220,8 +215,6 @@ def ask_question(request: QuestionRequest):
             if r.get("metadata")
         ]
         texts = [t for t in texts if t and t.strip()]
-
-        # Format conversation history for prompt
         history_context = ""
         if clean_history:
             history_lines = [
@@ -251,7 +244,6 @@ Answer:"""
                 conversation_id=request.conversation_id,
             )
 
-        # 6. Build prompt with document context and conversation history
         context = "\n\n---\n\n".join(texts)
         prompt = f"""You are a helpful AI assistant.
 
@@ -268,7 +260,7 @@ Answer:"""
    -    Start your answer with [SOURCE: DOCUMENT].
     3. If the context does not contain enough information:
    -     Answer using your general knowledge.
-   -     Start your answer with [SOURCE: GENERAL KNOWLEDGE].
+-     Start your answer with [SOURCE: GENERAL KNOWLEDGE].
    -     Clearly state that the answer was not found in the retrieved document content.
     4. If the context answers only part of the question:
    -     Answer the supported part using the document.
